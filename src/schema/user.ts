@@ -1,4 +1,3 @@
-
 export default `#graphql
   type User {
     _id: ID!

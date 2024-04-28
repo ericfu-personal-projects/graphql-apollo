@@ -13,8 +13,8 @@ const ProfileModel = model('Profile', ProfileSchema);
 const UnauthorizedError = new GraphQLError('Unauthorized', {
     extensions: {
         code: 'UNAUTHORIZED',
-        http: { status: 401 }
-    }
+        http: { status: 401 },
+    },
 });
 export default {
     Query: {
@@ -34,5 +34,5 @@ export default {
             const profile = await ProfileModel.findOneAndUpdate({ userId }, { $set: { firstName, lastName, city, province, country } }, { new: true, upsert: true });
             return profile;
         },
-    }
+    },
 };

@@ -22,7 +22,7 @@ const server = new ApolloServer({
     includeStacktraceInErrorResponses: false,
     typeDefs,
     resolvers,
-    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })]
+    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
 await server.start();
 // Specify the path where we'd like to mount our server
@@ -41,11 +41,11 @@ app.use('/', cors(), express.json(), expressMiddleware(server, {
             throw new GraphQLError('Invalid token', {
                 extensions: {
                     code: 'UNAUTHENTICATED',
-                    http: { status: 401 }
-                }
+                    http: { status: 401 },
+                },
             });
         }
-    }
+    },
 }));
 await new Promise((resolve) => httpServer.listen({ port: 4000 }, resolve));
 console.log(`🚀 Server ready at http://localhost:4000/`);

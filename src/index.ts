@@ -28,7 +28,7 @@ const server = new ApolloServer({
   includeStacktraceInErrorResponses: false,
   typeDefs,
   resolvers,
-  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })]
+  plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
 
 await server.start();
@@ -54,12 +54,12 @@ app.use(
         throw new GraphQLError('Invalid token', {
           extensions: {
             code: 'UNAUTHENTICATED',
-            http: { status: 401 }
-          }
+            http: { status: 401 },
+          },
         });
       }
-    }
-  })
+    },
+  }),
 );
 
 await new Promise<void>((resolve) => httpServer.listen({ port: 4000 }, resolve));

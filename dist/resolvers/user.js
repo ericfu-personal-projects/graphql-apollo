@@ -1,10 +1,6 @@
 import { Schema, model } from 'mongoose';
-import { GraphQLError } from 'graphql';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-const jwtSecret = process.env.JWT_SECRET || 'mysecret';
-const jwtExpiry = process.env.JWT_EXPIRY || '12h';
-const issuer = process.env.JWT_ISSUER || 'zhongyi';
+import CustomErrors from '../errors/custom.js';
+import { getToken, getHashedPassword, getSalt } from '../utils/jwtUtil.js';
 const UsersSchema = new Schema({
     _id: Schema.Types.ObjectId,
     email: String,
@@ -12,55 +8,58 @@ const UsersSchema = new Schema({
     salt: String,
 });
 const UsersModel = model('Users', UsersSchema);
-function getToken(email, _id) {
-    return jwt.sign({ iss: issuer, email, userId: _id }, jwtSecret, { expiresIn: jwtExpiry });
-}
 export default {
     Query: {
         login: async (parent, args) => {
             const { email, password } = args;
-            const user = await UsersModel.findOne({ email });
-            if (!user) {
-                throw new GraphQLError('User not found', {
-                    extensions: { code: '404' },
-                });
+            try {
+                // check if user exists
+                const user = await UsersModel.findOne({ email });
+                if (!user) {
+                    return CustomErrors.INVALID_CREDENTIALS;
+                }
+                // validate password
+                const hashedPassword = getHashedPassword(password, user.salt);
+                if (user.password !== hashedPassword) {
+                    return CustomErrors.INVALID_CREDENTIALS;
+                }
+                // generate token
+                return {
+                    token: getToken(user.email, user._id.toString()),
+                };
             }
-            const hashedPassword = crypto
-                .pbkdf2Sync(password, user.salt, 310000, 32, 'sha256')
-                .toString('hex');
-            if (user.password !== hashedPassword) {
-                throw new GraphQLError('Invalid password', {
-                    extensions: { code: '400' },
-                });
+            catch (error) {
+                console.error(error);
+                return CustomErrors.INTERNAL_ERROR;
             }
-            return {
-                token: getToken(user.email, user._id.toString()),
-            };
         },
     },
     Mutation: {
         register: async (parent, args) => {
             const { email, password } = args;
-            // check if user exists
-            const user = await UsersModel.findOne({ email });
-            if (user) {
-                throw new GraphQLError('User already exist', {
-                    extensions: { code: '409' },
+            try {
+                // check if user exists
+                const user = await UsersModel.findOne({ email });
+                if (user) {
+                    return CustomErrors.DUPLICATED_USER;
+                }
+                // hash password
+                const salt = getSalt();
+                // create new user
+                const newUser = new UsersModel({
+                    email,
+                    password: getHashedPassword(password, salt),
+                    salt,
                 });
+                const savedUser = await newUser.save();
+                return {
+                    token: getToken(savedUser.email, savedUser._id.toString()),
+                };
             }
-            const salt = crypto.randomBytes(16).toString('hex');
-            const hashedPassword = crypto
-                .pbkdf2Sync(password, salt, 310000, 32, 'sha256')
-                .toString('hex');
-            const newUser = new UsersModel({
-                email,
-                password: hashedPassword,
-                salt,
-            });
-            const savedUser = await newUser.save();
-            return {
-                token: getToken(savedUser.email, savedUser._id.toString()),
-            };
+            catch (error) {
+                console.error(error);
+                return CustomErrors.INTERNAL_ERROR;
+            }
         },
     },
 };

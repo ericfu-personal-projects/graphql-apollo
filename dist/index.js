@@ -1,23 +1,18 @@
 import { ApolloServer } from '@apollo/server';
-import mongoose from 'mongoose';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
-import http from 'http';
 import { expressMiddleware } from '@apollo/server/express4';
 import cors from 'cors';
 import express from 'express';
-import { GraphQLError } from 'graphql';
-import typeDefs from './schema/index.js';
+import http from 'http';
+import mongoose from 'mongoose';
+// Local imports
+import { verifyToken } from './utils/jwtUtil.js';
+import CustomErrors from './errors/custom.js';
 import resolvers from './resolvers/index.js';
-import jwt from 'jsonwebtoken';
-const jwtSecret = process.env.JWT_SECRET || 'mysecret';
+import typeDefs from './schema/index.js';
 const app = express();
-// Our httpServer handles incoming requests to our Express app.
-// Below, we tell Apollo Server to "drain" this httpServer,
-// enabling our servers to shut down gracefully.
 const httpServer = http.createServer(app);
 mongoose.connect('mongodb://localhost:27017/test', { autoIndex: false });
-// The ApolloServer constructor requires two parameters: your schema
-// definition and your set of resolvers.
 const server = new ApolloServer({
     includeStacktraceInErrorResponses: false,
     typeDefs,
@@ -25,7 +20,6 @@ const server = new ApolloServer({
     plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
 });
 await server.start();
-// Specify the path where we'd like to mount our server
 app.use('/', cors(), express.json(), expressMiddleware(server, {
     context: async ({ req }) => {
         const authHeader = req.headers.authorization || '';
@@ -34,16 +28,11 @@ app.use('/', cors(), express.json(), expressMiddleware(server, {
             return null;
         }
         try {
-            const user = jwt.verify(token, jwtSecret);
+            const user = verifyToken(token);
             return { user };
         }
         catch (error) {
-            throw new GraphQLError('Invalid token', {
-                extensions: {
-                    code: 'UNAUTHENTICATED',
-                    http: { status: 401 },
-                },
-            });
+            return CustomErrors.UNAUTHORIZED;
         }
     },
 }));

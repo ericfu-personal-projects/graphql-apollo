@@ -3,11 +3,11 @@ export default `#graphql
 type Profile {
   _id: ID!
   userId: ID!
-  firstName: String!
-  lastName: String!
-  city: String!
-  province: String!
-  country: String!
+  firstName: String
+  lastName: String
+  city: String
+  province: String
+  country: String
 }
 
 type Query {
